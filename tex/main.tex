@@ -1,0 +1,25 @@
+\documentclass[a4paper, 14pt, unknownkeysallowed]{extreport}
+\include{settings}
+
+\begin{document}
+%	\include{title}
+%	\includepdf[pages=-]{intro.pdf}
+%	\includepdf[pages=-]{TW.pdf}
+	\setcounter{page}{3}
+%	\include{abstract}
+	\counterwithout{lstlisting}{chapter}
+	\renewcommand{\contentsname}{\LARGE\bfseries\centering СОДЕРЖАНИЕ}
+	\tableofcontents
+	%	
+	\include {introduction}
+%	%	
+	
+	\include{analysis}
+	
+
+%	\include{conclusion}
+%	
+	\include{sources}   
+		
+%	\include{application}       
+\end{document}
