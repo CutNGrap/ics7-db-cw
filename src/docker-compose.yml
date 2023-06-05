@@ -1,0 +1,14 @@
+version: '3.3'
+
+services:
+  postgres:
+    image: postgres
+    container_name: course_work
+    environment:
+      POSTGRES_PASSWORD: postgres
+      PG_PASSWORD: postgres
+      POSTGRES_DB: course_work
+    volumes:
+    - ./data/pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
