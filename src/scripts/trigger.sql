@@ -20,14 +20,25 @@ $$ LANGUAGE plpgsql;
 select first_time from theme
 		where name = '101'
 
-create TRIGGER check_first_date_trigger_cr
-AFTER INSERT  ON "project"
+create TRIGGER check_first_date_trigger
+AFTER INSERT or UPDATE  ON "project"
 FOR EACH ROW
 EXECUTE FUNCTION check_first_date();
 
-create TRIGGER check_first_date_trigger_upd
-AFTER UPDATE  ON "project"
-FOR EACH ROW
-EXECUTE FUNCTION check_first_date();
 
+create or replace function cnt_sources() returns table(id int, fio text, cnt bigint) 
+as $$
+begin
+	return query(
+		select s.id, s.fio, count(project_id)
+		from (student s join project p on s.id = p.author_id) 
+				join source_project sp on p.id = sp.project_id
+		group by s.id);
+end;
+$$ LANGUAGE 'plpgsql';
+
+drop function cnt_sources(int4) 
+
+
+select * from cnt_sources()
 
