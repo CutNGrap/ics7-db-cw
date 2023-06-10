@@ -3,7 +3,7 @@ from datetime import date
 
 
 class GroupSchema(BaseModel):
-    group_num: int | None = None
+    group_num: int = None
     faculty: str | None = None
     qualification: str | None = None
     creation: int | None = None

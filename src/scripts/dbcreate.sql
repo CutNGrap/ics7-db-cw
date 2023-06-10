@@ -1,3 +1,11 @@
+drop table if exists grouptab cascade;
+drop table if exists student cascade;
+drop table if exists theme cascade;
+drop table if exists "source" cascade;
+drop table if exists project cascade;
+drop table if exists source_project cascade;
+
+
 CREATE TABLE grouptab
 (
     id INT NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY key,
@@ -33,7 +41,8 @@ CREATE TABLE source
     name text not null,
 	type text default '',
 	authors text not null,
-    creation int default date_part('year', CURRENT_DATE)
+    creation int default date_part('year', CURRENT_DATE),
+    unique(name, type, authors, creation)
 );
 
 CREATE TABLE project
@@ -42,7 +51,8 @@ CREATE TABLE project
     theme_id int references theme(id),
     author_id int references student(id),
     mark int not null CHECK (mark > 1) check (mark < 6),
-  	passed date not null default CURRENT_DATE
+  	passed date not null default CURRENT_DATE,
+  	unique(theme_id, author_id, mark, passed)
 );
 
 create table source_project

@@ -1,383 +1,727 @@
-from sqlalchemy import create_engine
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
-from utils.models import *
-from fastapi import FastAPI, Depends, HTTPException, status, Response
-from utils.models import *
-from utils.chemas import *
-import uvicorn
-from sqlalchemy.orm import Session
-from pydantic import ValidationError
+import sys
 
-app = FastAPI()
+from PyQt5.uic import loadUi
+from PyQt5.QtWidgets import QApplication, QMessageBox, QTableWidget,QTableWidgetItem, QHeaderView, QWidget
+from PyQt5.QtCore import QRect
+from math import sqrt
+from utils.back import *
+from datetime import datetime
 
-def create_session():
-    engine = create_engine(
-        f'postgresql://postgres:postgres@localhost:5432/course_work',
-        pool_pre_ping=True)
-    try:
-        engine.connect()
-        print("БД успешно подключена!")
-    except:
-        print("Ошибка соединения c БД!")
-        return
-    Session = sessionmaker(bind=engine)
-    db = Session()
-    return db
+from forms.mainwindow_ui import *
+from forms.printwindow_ui import *
 
-def get_db():
-    db = create_session()
-    try:
-        yield db
-    finally:
-        db.close()
+class Window(QtWidgets.QMainWindow, Ui_MainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setupUi(self)
 
+        self.radioButton.setChecked(True)
+        self.radioButton_11.setChecked(True)
+        self.info = QMessageBox()
+        self.info.setWindowTitle("Уведомление")
 
-# Get all
+        self.warning = QMessageBox()
+        self.warning.setIcon(QMessageBox.Critical)
+        self.warning.setWindowTitle("Ошибка")
 
-@app.get("/groups_read")
-def get_all_groups(db: Session = Depends(get_db), limit: int = 10, skip: int = 0):
-    ofs = skip * limit
-    groups = db.query(Group).limit(limit).offset(ofs).all()
-    return {'status': 'success', 'results': len(groups), 'groups': groups}
+        self.tableWidget = QTableWidget()
+        self.tableWidget.setGeometry(QRect(60, 30, 500, 500))
+        self.tableWidget.setWindowTitle("Результат запроса")
+        self.tableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
 
-@app.get("/themes_read")
-def get_all_themes(db: Session = Depends(get_db), limit: int = 10, skip: int = 0):
-    ofs = skip * limit
-    themes = db.query(Theme).limit(limit).offset(ofs).all()
-    return {'status': 'success', 'results': len(themes), 'themes': themes}
+        self.labels = [self.label_1, self.label_2, self.label_3, self.label_4, self.label_5, self.label_6, self.label_7]
+        self.radioButtons = [self.radioButton, self.radioButton_2, self.radioButton_3, self.radioButton_4, self.radioButton_5,
+                    self.radioButton_6, self.radioButton_11, self.radioButton_12, self.radioButton_13, self.radioButton_14, self.radioButton_15]
 
-@app.get("/sources_read")
-def get_all_sources(db: Session = Depends(get_db), limit: int = 10, skip: int = 0):
-    ofs = skip * limit
-    sources = db.query(Source).limit(limit).offset(ofs).all()
-    return {'status': 'success', 'results': len(sources), 'sources': sources}
+        self.lineEdits = [self.lineEdit_1, self.lineEdit_2, self.lineEdit_3, self.lineEdit_4, self.lineEdit_5,self.lineEdit_6,self.lineEdit_7]
+        self.pushButton.clicked.connect(self.func)
+        # self.pushButton_2.clicked.connect(self.more_avg)
 
-@app.get("/students_read")
-def get_all_students(db: Session = Depends(get_db), limit: int = 10, skip: int = 0):
-    ofs = skip * limit
-    students = db.query(Student).limit(limit).offset(ofs).all()
-    return {'status': 'success', 'results': len(students), 'students': students}
+        self.radio()
 
-@app.get("/projects_read")
-def get_all_projects(db: Session = Depends(get_db), limit: int = 10, skip: int = 0):
-    ofs = skip * limit
-    projects = db.query(Project).limit(limit).offset(ofs).all()
-    return {'status': 'success', 'results': len(projects), 'projects': projects}
+        for rad in self.radioButtons:
+            rad.clicked.connect(self.radio)
 
-@app.get("/projects_read")
-def get_all_source_projects(db: Session = Depends(get_db), limit: int = 10, skip: int = 0):
-    ofs = skip * limit
-    projects = db.query(SourceProject).limit(limit).offset(ofs).all()
-    return {'status': 'success', 'results': len(projects), 'source_project': projects}
+    def more_avg(self):
+        self.con = create_session()
+        try:
+            lim = self.read_pos(self.lineEdit_8, self.label_10.text())
+            skip = self.read_pos(self.lineEdit_9, self.label_9.text())
+        except:
+            return
+        try:
+            data = get_more_avg(self.con, lim, skip)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        except Exception as e:
+            print(e)
+        self.con.close()
+        fill_table1(self.tableWidget, data, ["Id студента", "ФИО", "Id проекта", "Количество источников"])
 
+    def func(self):
+        widget = None
+        self.con = create_session()
+        if self.radioButton.isChecked():
+            head = ["Id", "Номер группы", "Факультет", "Квалификация", "Год создания"]
+            if self.radioButton_11.isChecked():
+                self.get_groups(head)
+            elif self.radioButton_12.isChecked():
+                self.get_group1(head)
+            elif self.radioButton_13.isChecked():
+                self.create_group(head)
+            elif self.radioButton_14.isChecked():
+                self.update_group(head)
+            else:
+                self.delete_group()
 
-# Get one
+        elif self.radioButton_2.isChecked():
+            head = ["Id", "ФИО", "Id группы", "Номер зачетки", "Дата рождения", "Год поступления"]
+            if self.radioButton_11.isChecked():
+                self.get_students(head)
+            elif self.radioButton_12.isChecked():
+                self.get_student(head)
+            elif self.radioButton_13.isChecked():
+                self.create_student(head)
+            elif self.radioButton_14.isChecked():
+                self.update_student(head)
+            else:
+                self.delete_student()
 
-@app.get("/group_read")
-def get_group(id:int,db: Session = Depends(get_db)):
-    group = db.query(Group).filter(Group.id == id).first()
-    if not group:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No group with given id={id} found')
-    return {'status': 'success', 'group': group}
+        elif self.radioButton_3.isChecked():
+            head = ["Id", "Название", "Сложность", "Год первой реализации"]
+            if self.radioButton_11.isChecked():
+                self.get_themes(head)
+            elif self.radioButton_12.isChecked():
+                self.get_theme(head)
+            elif self.radioButton_13.isChecked():
+                self.create_theme(head)
+            elif self.radioButton_14.isChecked():
+                self.update_theme(head)
+            else:
+                self.delete_theme()
 
-@app.get("/theme_read")
-def get_theme(id:int,db: Session = Depends(get_db)):
-    theme = db.query(Theme).filter(Theme.id == id).first()
-    if not theme:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No theme with given id={id} found')
-    return {'status': 'success', 'theme': theme}
+        elif self.radioButton_4.isChecked():
+            head = ["Id", "Название", "Тип", "Авторы", "Год издания"]
+            if self.radioButton_11.isChecked():
+                self.get_sources(head)
+            elif self.radioButton_12.isChecked():
+                self.get_source(head)
+            elif self.radioButton_13.isChecked():
+                self.create_source(head)
+            elif self.radioButton_14.isChecked():
+                self.update_source(head)
+            else:
+                self.delete_source()
 
-@app.get("/source_read")
-def get_source(id:int,db: Session = Depends(get_db)):
-    source = db.query(Source).filter(Source.id == id).first()
-    if not source:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No source with given id={id} found')
-    return {'status': 'success', 'source': source}
+        elif self.radioButton_5.isChecked():
+            head = ["Id", "Id темы", "Id студента", "Оценка", "Дата сдачи"]
+            if self.radioButton_11.isChecked():
+                self.get_projects(head)
+            elif self.radioButton_12.isChecked():
+                self.get_project(head)
+            elif self.radioButton_13.isChecked():
+                self.create_project(head)
+            elif self.radioButton_14.isChecked():
+                self.update_project(head)
+            else:
+                self.delete_project()
+        
+        else:
+            head = ["Id", "Id источника", "Id проекта"]
+            if self.radioButton_11.isChecked():
+                self.get_relations(head)
+            elif self.radioButton_12.isChecked():
+                self.get_relation(head)
+            elif self.radioButton_13.isChecked():
+                self.create_relation(head)
+            elif self.radioButton_14.isChecked():
+                self.update_relation(head)
+            else:
+                self.delete_relation()
+        self.con.close()
 
-@app.get("/student_read")
-def get_student(id:int,db: Session = Depends(get_db)):
-    student = db.query(Student).filter(Student.id == id).first()
-    if not student:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No student with given id={id} found')
-    return {'status': 'success', 'student': student}
+    def get_relations(self, header):
+        try:
+            lim = self.read_pos(self.lineEdit_6, self.label_6.text())
+            skip = self.read_pos(self.lineEdit_7, self.label_7.text())
+        except:
+            return
+        try:
+            data = get_all_source_projects(self.con, lim, skip)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, data, header)
 
-@app.get("/project_read")
-def get_project(id:int,db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.id == id).first()
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No project with given id={id} found')
-    return {'status': 'success', 'project': project}
+    def get_relation(self, header):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = get_source_project(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, [data], header)
 
+    def create_relation(self, header):
+        values=[]
+        try:
+            values.append(self.read_pos(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_pos(self.lineEdit_2, self.label_2.text()))
+        except:
+            return
+        keys = ["source_id", "project_id"]
 
-# Create
+        try:
+            data = create_source_project(self.con, dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись добавлена")
+        fill_table(self.tableWidget, [data], header)
 
-@app.post("/group_create", status_code=status.HTTP_201_CREATED)
-def create_group(payload: GroupSchema, db: Session = Depends(get_db)):
-    try:
-        new_group = Group(**payload.dict())
-        db.add(new_group)
-        db.commit()
-        db.refresh(new_group)
-        return {"status": "success", "group": new_group}
-    except Exception as e:
-        raise e
+    def update_relation(self, header):
+        values=[]
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+            values.append(self.read_pos(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_pos(self.lineEdit_2, self.label_2.text()))
+        except:
+            return
+        keys = ["source_id", "project_id"]
 
-@app.post("/student_create", status_code=status.HTTP_201_CREATED)
-def create_student(payload: StudentSchema, db: Session = Depends(get_db)):
-    try:
-        new_student = Student(**payload.dict())
-        db.add(new_student)
-        db.commit()
-        db.refresh(new_student)
-        return {"status": "success", "student": new_student}
-    except Exception as e:
-        raise e
-
-@app.post("/theme_create", status_code=status.HTTP_201_CREATED)
-def create_theme(payload: ThemeSchema, db: Session = Depends(get_db)):
-    if not (payload.complexity == None or 0 < payload.complexity < 11):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Theme complexity must be an integer in [1, 10], not {payload.complexity}')
-    try:
-        new_theme = Theme(**payload.dict())
-        db.add(new_theme)
-        db.commit()
-        db.refresh(new_theme)
-        return {"status": "success", "theme": new_theme}
-    except Exception as e:
-        raise e
-
-@app.post("/source_create", status_code=status.HTTP_201_CREATED)
-def create_source(payload: SourceSchema, db: Session = Depends(get_db)):
-    try:
-        new_source = Source(**payload.dict())
-        db.add(new_source)
-        db.commit()
-        db.refresh(new_source)
-        return {"status": "success", "source": new_source}
-    except Exception as e:
-        raise e
-
-@app.post("/project_create", status_code=status.HTTP_201_CREATED)
-def create_project(payload: ProjectSchema, db: Session = Depends(get_db)):
-    if not (payload.mark == None or 1 < payload.mark < 6):
-         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Project mark must be an integer in [2, 5], not {payload.mark}')
-    try:
-        new_project = Project(**payload.dict())
-        db.add(new_project)
-        db.commit()
-        db.refresh(new_project)
-        return {"status": "success", "project": new_project}
-    except Exception as e:
-        raise e
-
-@app.post("/source_project_create", status_code=status.HTTP_201_CREATED)
-def create_source_project(payload: SourceProjectSchema, db: Session = Depends(get_db)):
-    try:
-        new_source_project = SourceProject(**payload.dict())
-        db.add(new_source_project)
-        db.commit()
-        db.refresh(new_source_project)
-        return {"status": "success", "new source_project": new_source_project}
-    except Exception as e:
-        raise e
-
-# Update
-
-@app.patch('/group_upd')
-def update_group(groupId: int, payload: GroupSchema, db: Session = Depends(get_db)):
-    group_query = db.query(Group).filter(Group.id == groupId)
-    db_group = group_query.first()
-    if not db_group:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No group with id={groupId} found')
-    update_data = payload.dict(exclude_unset=True)
-    group_query.filter(Group.id == groupId).update(update_data, synchronize_session=False)
-    db.commit()
-    db.refresh(db_group)
-    return {"status": "success", "updated group": db_group}
-
-@app.patch('/theme_upd')
-def update_theme(themeId: int, payload: ThemeSchema, db: Session = Depends(get_db)):
-    if not (payload.complexity == None or 0 < payload.complexity < 11):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Theme complexity must be an integer in [1, 10], not {payload.complexity}')
-    theme_query = db.query(Theme).filter(Theme.id == themeId)
-    db_theme = theme_query.first()
-    if not db_theme:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No theme with id={themeId} found')
-    update_data = payload.dict(exclude_unset=True)
-    theme_query.filter(Theme.id == themeId).update(update_data, synchronize_session=False)
-    db.commit()
-    db.refresh(db_theme)
-    return {"status": "success", "updated theme": db_theme}
-
-@app.patch('/student_upd')
-def update_student(studentId: int, payload: StudentSchema, db: Session = Depends(get_db)):
-    group_query = db.query(Group).filter(Group.id == payload.group_id)
-    db_group = group_query.first()
-    if not db_group:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No group with id={payload.group_id} found')
+        try:
+            data = update_source_project(self.con, ID,dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись изменена")
+        fill_table(self.tableWidget, [data], header)
     
+    def delete_relation(self):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = delete_source_project(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись удалена")
 
-    student_query = db.query(Student).filter(Student.id == studentId)
-    db_student = student_query.first()
-    if not db_student:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No student with id={studentId} found')
-    update_data = payload.dict(exclude_unset=True)
-    student_query.filter(Student.id == studentId).update(update_data, synchronize_session=False)
-    db.commit()
-    db.refresh(db_student)
-    return {"status": "success", "updated student": db_student}
+    def get_projects(self, header):
+        try:
+            lim = self.read_pos(self.lineEdit_6, self.label_6.text())
+            skip = self.read_pos(self.lineEdit_7, self.label_7.text())
+        except:
+            return
+        try:
+            data = get_all_projects(self.con, lim, skip)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, data, header)
 
-@app.patch('/source_upd')
-def update_source(sourceId: int, payload: SourceSchema, db: Session = Depends(get_db)):
-    source_query = db.query(Source).filter(Source.id == sourceId)
-    db_source = source_query.first()
-    if not db_source:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No source with id={sourceId} found')
-    update_data = payload.dict(exclude_unset=True)
-    source_query.filter(Source.id == sourceId).update(update_data, synchronize_session=False)
-    db.commit()
-    db.refresh(db_source)
-    return {"status": "success", "updated source": db_source}
+    def get_project(self, header):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = get_project(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, [data], header)
 
-@app.patch('/project_upd')
-def update_project(projectId: int, payload: ProjectSchema, db: Session = Depends(get_db)):
-    if not (payload.mark == None or 1 < payload.mark < 6):
-         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Project mark must be an integer in [2, 5], not {payload.mark}')
-    student_query = db.query(Student).filter(Student.id == payload.author_id)
-    db_student = student_query.first()
-    if not db_student:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No student(author) with id={payload.author_id} found')
-    theme_query = db.query(Theme).filter(Theme.id == payload.theme_id)
-    db_theme = theme_query.first()
-    if not db_theme:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No theme with id={payload.theme_id} found')
+    def create_project(self, header):
+        values=[]
+        try:
+            values.append(self.read_pos(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_pos(self.lineEdit_2, self.label_2.text()))
+            values.append(self.read_pos(self.lineEdit_3, self.label_3.text()))
+            values.append(self.read_date(self.lineEdit_4, self.label_4.text()))
+        except:
+            return
+        keys = ["theme_id", "author_id", "mark", "passed"]
+
+        try:
+            data = create_project(self.con, dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись добавлена")
+        fill_table(self.tableWidget, [data], header)
+
+    def update_project(self, header):
+        values=[]
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+            values.append(self.read_pos(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_pos(self.lineEdit_2, self.label_2.text()))
+            values.append(self.read_pos(self.lineEdit_3, self.label_3.text()))
+            values.append(self.read_date(self.lineEdit_4, self.label_4.text()))
+        except:
+            return
+        keys = ["theme_id", "author_id", "mark", "passed"]
+
+        try:
+            data = update_project(self.con, ID,dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись изменена")
+        fill_table(self.tableWidget, [data], header)
     
-    project_query = db.query(Project).filter(Project.id == projectId)
-    db_project = project_query.first()
-    if not db_project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No project with id={projectId} found')
-    update_data = payload.dict(exclude_unset=True)
-    project_query.filter(Project.id == projectId).update(update_data, synchronize_session=False)
-    db.commit()
-    db.refresh(db_project)
-    return {"status": "success", "updated project": db_project}
+    def delete_project(self):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = delete_project(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись удалена")
 
-@app.patch('/source_project_upd')
-def update_source_project(source_projectId: int, payload: SourceProjectSchema, db: Session = Depends(get_db)):
-    source_project_query = db.query(SourceProject).filter(SourceProject.id == source_projectId)
-    db_source_project = source_project_query.first()
-    if not db_source_project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No source_project with id={source_projectId} found')
-    update_data = payload.dict(exclude_unset=True)
-    source_project_query.filter(SourceProject.id == source_projectId).update(update_data, synchronize_session=False)
-    db.commit()
-    db.refresh(db_source_project)
-    return {"status": "success", "updated source_project": db_source_project}
+    def get_sources(self, header):
+        try:
+            lim = self.read_pos(self.lineEdit_6, self.label_6.text())
+            skip = self.read_pos(self.lineEdit_7, self.label_7.text())
+        except:
+            return
+        try:
+            data = get_all_sources(self.con, lim, skip)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, data, header)
 
+    def get_source(self, header):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = get_source(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, [data], header)
 
-# Delete
+    def create_source(self, header):
+        values=[]
+        try:
+            values.append(self.read_str(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_str(self.lineEdit_2, self.label_2.text()))
+            values.append(self.read_str(self.lineEdit_3, self.label_3.text()))
+            values.append(self.read_pos(self.lineEdit_4, self.label_4.text()))
+        except:
+            return
+        keys = ["name", "type", "authors", "creation"]
 
-@app.delete('/group_delete')
-def delete_group(groupId: int, db: Session = Depends(get_db)):
-    group_query = db.query(Group).filter(Group.id == groupId)
-    db_group = group_query.first()
-    if not db_group:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No group with id={groupId} found')
+        try:
+            data = create_source(self.con, dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись добавлена")
+        fill_table(self.tableWidget, [data], header)
+
+    def update_source(self, header):
+        values=[]
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+            values.append(self.read_str(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_str(self.lineEdit_2, self.label_2.text()))
+            values.append(self.read_str(self.lineEdit_3, self.label_3.text()))
+            values.append(self.read_pos(self.lineEdit_4, self.label_4.text()))
+        except:
+            return
+        keys = ["name", "type", "authors", "creation"]
+
+        try:
+            data = update_source(self.con, ID,dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись изменена")
+        fill_table(self.tableWidget, [data], header)
     
-    try:
-        group_query.filter(Group.id == groupId).delete(synchronize_session=False)
-        db.commit()
-    except IntegrityError:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'There are students registered in given group (id={groupId}) in database')
-    return {"status": "success"}
+    def delete_source(self):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = delete_source(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись удалена")
 
-@app.delete('/theme_delete')
-def delete_theme(themeId: int, db: Session = Depends(get_db)):
-    theme_query = db.query(Theme).filter(Theme.id == themeId)
-    db_theme = theme_query.first()
-    if not db_theme:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No theme with id={themeId} found')
-    try:
-        theme_query.filter(Group.id == themeId).delete(synchronize_session=False)
-        db.commit()
-    except IntegrityError:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'There are projects on given theme (id={themeId}) in database')
-    return {"status": "success"}
+    def get_themes(self, header):
+        try:
+            lim = self.read_pos(self.lineEdit_6, self.label_6.text())
+            skip = self.read_pos(self.lineEdit_7, self.label_7.text())
+        except:
+            return
+        try:
+            data = get_all_themes(self.con, lim, skip)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, data, header)
 
-@app.delete('/student_delete')
-def delete_student(studentId: int, db: Session = Depends(get_db)):
+    def get_theme(self, header):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = get_theme(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, [data], header)
 
-    student_query = db.query(Student).filter(Student.id == studentId)
-    db_student = student_query.first()
-    if not db_student:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No student with id={studentId} found')
+    def create_theme(self, header):
+        values=[]
+        try:
+            values.append(self.read_str(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_pos(self.lineEdit_2, self.label_2.text()))
+            values.append(self.read_pos(self.lineEdit_3, self.label_3.text()))
+        except:
+            return
+        keys = ["name", "complexity", "first_time"]
+
+        try:
+            data = create_theme(self.con, dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись добавлена")
+        fill_table(self.tableWidget, [data], header)
+
+    def update_theme(self, header):
+        values=[]
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+            values.append(self.read_str(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_pos(self.lineEdit_2, self.label_2.text()))
+            values.append(self.read_pos(self.lineEdit_3, self.label_3.text()))
+        except:
+            return
+        keys = ["name", "complexity", "first_time"]
+
+        try:
+            data = update_theme(self.con, ID,dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись изменена")
+        fill_table(self.tableWidget, [data], header)
     
-    try:
-        student_query.filter(Student.id == studentId).delete(synchronize_session=False)
-        db.commit()
-    except IntegrityError:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'There are projects created by given student (id={studentId}) in database')
-    return {"status": "success"}
+    def delete_theme(self):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = delete_theme(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись удалена")
+        
+    def get_students(self, header):
+        try:
+            lim = self.read_pos(self.lineEdit_6, self.label_6.text())
+            skip = self.read_pos(self.lineEdit_7, self.label_7.text())
+        except:
+            return
+        try:
+            data = get_all_students(self.con, lim, skip)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, data, header)
 
-@app.delete('/source_delete')
-def delete_source(sourceId: int, db: Session = Depends(get_db)):
-    source_query = db.query(Source).filter(Source.id == sourceId)
-    db_source = source_query.first()
-    if not db_source:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No source with id={sourceId} found')
-    try:
-        source_query.filter(Source.id == sourceId).delete(synchronize_session=False)
-        db.commit()
-    except IntegrityError:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'There are projects utilizing given source (id={sourceId}) in database')
-    return {"status": "success"}
+    def get_student(self, header):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = get_student(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, [data], header)
 
-@app.delete('/project_delete')
-def delete_project(projectId: int, db: Session = Depends(get_db)):
+    def create_student(self, header):
+        values=[]
+        try:
+            values.append(self.read_str(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_pos(self.lineEdit_2, self.label_2.text()))
+            values.append(self.read_pos(self.lineEdit_3, self.label_3.text()))
+            values.append(self.read_date(self.lineEdit_4, self.label_4.text()))
+            values.append(self.read_pos(self.lineEdit_5, self.label_5.text()))
+        except:
+            return
+        keys = ["fio", "group_id", "book_num", "birth", "enrollment"]
 
-    project_query = db.query(Project).filter(Project.id == projectId)
-    db_project = project_query.first()
-    if not db_project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No project with id={projectId} found')
-    try:
-        source_project_query = db.query(SourceProject).filter(SourceProject.project_id == projectId)
-        source_project_query.delete(synchronize_session=False)
-        project_query.filter(Project.id == projectId).delete(synchronize_session=False)
-        db.commit()
-    except IntegrityError:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Unknown Error')
-    return {"status": "success"}
+        try:
+            data = create_student(self.con, dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись добавлена")
+        fill_table(self.tableWidget, [data], header)
 
+    def update_student(self, header):
+        values=[]
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+            values.append(self.read_str(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_pos(self.lineEdit_2, self.label_2.text()))
+            values.append(self.read_pos(self.lineEdit_3, self.label_3.text()))
+            values.append(self.read_date(self.lineEdit_4, self.label_4.text()))
+            values.append(self.read_pos(self.lineEdit_5, self.label_5.text()))
+        except:
+            return
+        keys = ["fio", "group_id", "book_num", "birth", "enrollment"]
 
-@app.delete('/source_project_delete')
-def delete_source_project(source_projectId: int, db: Session = Depends(get_db)):
-    source_project_query = db.query(SourceProject).filter(SourceProject.id == source_projectId)
-    db_source_project = source_project_query.first()
-    if not db_source_project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'No source_project with id={source_projectId} found')
-    try:
-        source_project_query = db.query(SourceProject).filter(SourceProject.id == source_projectId)
-        source_project_query.delete(synchronize_session=False)
-        db.commit()
-    except IntegrityError:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Unknown Error')
-    return {"status": "success"}
+        try:
+            data = update_student(self.con, ID,dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись изменена")
+        fill_table(self.tableWidget, [data], header)
+    
+    def delete_student(self):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = delete_student(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись удалена")
 
+    def radio(self):
+        for i in self.lineEdits:
+            i.clear()
+        if self.radioButton.isChecked():
+            self.set_labels(["Номер группы", "Факультет", "Квалификация", "Год создания", '', '', ''])
+        elif self.radioButton_2.isChecked():
+            self.set_labels(["ФИО", "Id группы", "Номер зачетки", "Дата рождения", 'Год поступления', '', ''])
+        elif self.radioButton_3.isChecked():
+            self.set_labels(["Название", "Сложность", "Год первой реализации", '', '', '', ''])
+        elif self.radioButton_4.isChecked():
+            self.set_labels(["Название", "Тип", "Авторы", "Год издания", '', '', ''])
+        elif self.radioButton_5.isChecked():
+            self.set_labels(["Id студента", "Id темы", "Оценка", "Дата сдачи", '', '', ''])
+        else:
+            self.set_labels(["Id источника", "Id проекта", '',  '', '', '', ''])
 
-@app.delete('/group_delete')
-def delete_group(groupId: str, db: Session = Depends(get_db)):
-    group_query = db.query(Group).filter(Group.id == groupId)
-    group = group_query.first()
-    if not group:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'No group with this id: {id} found')
-    group_query.delete(synchronize_session=False)
-    db.commit()
-    return {"status": "success"}
+        if self.radioButton_11.isChecked():
+            self.set_labels(['',  '', '', '', '',"Количество записей", "Количество пропущенных страниц"])
+        elif self.radioButton_12.isChecked():
+            self.set_labels(['',  '', '', '', '',"Id записи", ""])
+        elif self.radioButton_13.isChecked():
+            pass
+        elif self.radioButton_14.isChecked():
+            self.label_6.setText("Id записи")
+        elif self.radioButton_15.isChecked():
+            self.set_labels(["", "", '',  '', '', 'Id записи', ''])
 
+    def set_labels(self, lst):
+        for (i,lab) in enumerate(self.labels):
+            lab.setText(lst[i])
+
+    def get_groups(self, header):
+        try:
+            lim = self.read_pos(self.lineEdit_6, self.label_6.text())
+            skip = self.read_pos(self.lineEdit_7, self.label_7.text())
+        except:
+            return
+        try:
+            data = get_all_groups(self.con, lim, skip)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, data, header)
+
+    def get_group1(self, header):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = get_group(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        fill_table(self.tableWidget, [data], header)
+
+    def create_group(self, header):
+        values=[]
+        try:
+            values.append(self.read_pos(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_str(self.lineEdit_2, self.label_2.text()))
+            values.append(self.read_str(self.lineEdit_3, self.label_3.text()))
+            values.append(self.read_pos(self.lineEdit_4, self.label_4.text()))
+        except:
+            return
+        keys = ["group_num", "faculty", "qualification", "creation"]
+
+        try:
+            data = create_group(self.con, dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись добавлена")
+        fill_table(self.tableWidget, [data], header)
+
+    def update_group(self, header):
+        values=[]
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+            values.append(self.read_pos(self.lineEdit_1, self.label_1.text()))
+            values.append(self.read_str(self.lineEdit_2, self.label_2.text()))
+            values.append(self.read_str(self.lineEdit_3, self.label_3.text()))
+            values.append(self.read_pos(self.lineEdit_4, self.label_4.text()))
+        except:
+            return
+        keys = ["group_num", "faculty", "qualification", "creation"]
+
+        try:
+            data = update_group(self.con, ID,dict(zip(keys, values)))
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        except Exception as e:
+            self.show_warning(e.msg)
+        self.show_info("Запись изменена")
+        fill_table(self.tableWidget, [data], header)
+    
+    def delete_group(self):
+        try:
+            ID = self.read_pos(self.lineEdit_6, self.label_6.text())
+        except:
+            return
+        try:
+            data = delete_group(self.con, ID)
+        except Exc as e:
+            self.show_warning(e.msg)
+            self.con.rollback()
+            return
+        self.show_info("Запись удалена")
+
+    def read_pos(self, entry, name):
+        try:
+            value = int(entry.text())
+            if value < 0:
+                raise Exception()
+            return value
+        except:
+            self.show_warning(f'В поле "{name}" должно быть целое значение')
+            raise Exception()
+
+    def read_date(self, entry, name):
+        try:
+            date = datetime.strptime(entry.text(), '%d.%m.%Y')
+            return date
+        except:
+            self.show_warning(f'В поле "{name}" должна быть дата в формате DD.MM.YYYY')
+            raise Exception()
+            
+
+    def read_str(self, entry, name):
+        try:
+            value = entry.text()
+            if value == '':
+                raise Exception()
+            return value
+        except:
+            self.show_warning(f'В поле "{name}" должна быть непустая строка')
+            raise Exception()
+        
+    def show_warning(self, msg):
+        self.warning.setText(msg)
+        self.warning.show()
+
+    def show_info(self, msg):
+        self.info.setText(msg)
+        self.info.show()
+
+def get_model_values(model):
+    return list(model.__dict__.values())[1:]
+
+def fill_table1(widget, data, header):
+    widget.setRowCount(len(data))
+    widget.setColumnCount(len(header))
+    widget.setHorizontalHeaderLabels(header)
+    data = [i[0][1:-1].split(',') for i in data]
+    if len(data) > 0:
+        for row in range(len(data)):
+            for column in range(len(data[0])):
+                    widget.setItem(row, column, QTableWidgetItem(str(data[row][column])))
+    widget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+    widget.show()
+
+def fill_table(widget, data, header):
+    widget.setRowCount(len(data))
+    widget.setColumnCount(len(header))
+    widget.setHorizontalHeaderLabels(header)
+    if len(data) > 0:
+        for row in range(len(data)):
+            for column in range(len(data[0])):
+                    widget.setItem(row, column, QTableWidgetItem(str(data[row][column])))
+    widget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+    widget.show()
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=5000)
-
-
+    app = QApplication(sys.argv)
+    win = Window()
+    win.show()
+    sys.exit(app.exec())

@@ -1,5 +1,8 @@
 \addcontentsline{toc}{chapter}{СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ}
 
-\renewcommand\bibname{СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ} 
+\makeatletter
+\renewcommand\@biblabel[1]{#1.}
+\makeatother
+\renewcommand\bibname{Список использованных источников} % переименовать страницу списка литературы
 \bibliographystyle{utf8gost705u} 
 \bibliography{lib}         

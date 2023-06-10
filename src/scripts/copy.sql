@@ -8,4 +8,4 @@ copy student (FIO, group_id, book_num, birth, enrollment) from '/var/lib/postgre
 
 copy project (theme_id, author_id, mark, passed) from '/var/lib/postgresql/data/csv_sources/project.csv' delimiter ',' CSV;
 
-copy source_project  from '/var/lib/postgresql/data/csv_sources/source_project.csv' delimiter ',' CSV;
+copy source_project (source_id, project_id) from '/var/lib/postgresql/data/csv_sources/source_project.csv' delimiter ',' CSV;

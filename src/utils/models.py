@@ -15,6 +15,7 @@ class Group(BASE):
     qualification = Column(Text)
     creation = Column(Integer)
 
+
 class Student(BASE):
     __tablename__ = 'student'
     id = Column(Integer, Identity(always=True), primary_key=True)
