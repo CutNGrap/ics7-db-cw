@@ -311,3 +311,5 @@ TSWLatexianTemp*
 *.toc
 *.dtmp
 *.bkp
+pg_data/
+pg_data/*
